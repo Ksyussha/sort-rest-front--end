@@ -1,6 +1,9 @@
 <template>
   <div>
     <h1>Products</h1>
+    <div v-for="c in categories" :key="c.id" @click="pickCategory(c.id)">
+      <div class="category_nav">{{ c.title }}</div>
+    </div>
     <input type="num" id="price_gte" />
     <input type="num" id="price_lte" />
     <button @click="priceFilter">filter</button>
@@ -25,19 +28,44 @@ export default {
     return {
       products: [],
       priceSort: "updatedAt:desc",
+      categories: [],
     };
   },
   async mounted() {
-    const query = qs.stringify(
+    const c_query = qs.stringify(
       {
-        sort: ["updatedAt:desc"],
+        sort: ["title"],
+        
       },
       { encodeValuesOnly: true }
     );
-    const { data } = await axios.get(
-      "http://localhost:1337/api/products?" + query
+    const { data: c } = await axios.get("http://localhost:1337/api/categories?" + c_query);
+    this.categories = c.data.map((product) => {
+      return {
+        id: product.id,
+        ...product.attributes,
+      };
+    });
+    const id = this.categories[0].id
+    this.$router.push("?categoryId=" + id)
+    
+    const p_query = qs.stringify(
+      {
+        sort: ["updatedAt:desc"],
+        filters: {
+          category: {
+            id:{
+              $eq: Number(id),
+            },
+          },
+        },
+      },
+      { encodeValuesOnly: true }
     );
-    this.products = data.data.map((product) => {
+    const { data: p } = await axios.get(
+      "http://localhost:1337/api/products?" + p_query
+    );
+    this.products = p.data.map((product) => {
       return {
         id: product.id,
         ...product.attributes,
@@ -49,9 +77,17 @@ export default {
       this.$router.push("/products/" + id);
     },
     async onPriceSortChange() {
+      const id = this.$route.query.categoryId;
       const query = qs.stringify(
         {
           sort: [this.priceSort],
+          filters: {
+          category: {
+            id:{
+              $eq: Number(id),
+            },
+          },
+        },
         },
         { encodeValuesOnly: true }
       );
@@ -66,6 +102,7 @@ export default {
       });
     },
     async priceFilter() {
+      const id = this.$route.query.categoryId;
       const query = qs.stringify(
         {
           filters: {
@@ -81,6 +118,11 @@ export default {
                 },
               },
             ],
+            category: {
+            id:{
+              $eq: Number(id),
+            }
+          },
           },
         },
         { encodeValuesOnly: true }
@@ -95,6 +137,32 @@ export default {
         };
       });
     },
+    async pickCategory(id) {
+      const p_query = qs.stringify(
+      {
+        populate: "category",
+        sort: ["updatedAt:desc"],
+        filters: {
+          category: {
+            id:{
+              $eq: Number(id),
+            }
+          },
+        },
+      },
+      { encodeValuesOnly: true }
+    );
+    const { data: p } = await axios.get(
+      "http://localhost:1337/api/products?" + p_query
+    );
+    this.products = p.data.map((product) => {
+        return {
+          id: product.id,
+          ...product.attributes,
+        };
+      });
+      this.$router.push("?categoryId=" + id)
+    }
   },
 };
 </script>
@@ -107,6 +175,17 @@ export default {
   box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
 }
 .card:hover {
+  cursor: pointer;
   box-shadow: 0 8px 17px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+.category_nav {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  border: 3px solid black;
+}
+.category_nav:hover {
+  cursor: pointer;
 }
 </style>
